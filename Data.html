@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Waste Separation Dashboard</title>
+    
+    <!-- ฟอนต์ภาษาไทย และ Tailwind CSS -->
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: 'Prompt', sans-serif; overflow: hidden; }
+        /* ซ่อน Scrollbar แต่อยู่ให้เลื่อนได้เพื่อความสวยงามแบบสไลด์ */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+
+    <!-- นำเข้า React และ Library ที่จำเป็น (ทำงานผ่าน CDN) -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    <!-- เพิ่ม react-is เพื่อแก้ไขปัญหา ForwardRef -->
+    <script src="https://unpkg.com/react-is@18/umd/react-is.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://unpkg.com/prop-types/prop-types.min.js"></script>
+    <!-- กำหนดเวอร์ชัน Recharts เพื่อความเสถียร -->
+    <script src="https://unpkg.com/recharts@2.1.12/umd/Recharts.js"></script>
+</head>
+<body class="bg-[#f8fafc]">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        // 1. ดึง Hooks และ Components ออกมาจาก Library
+        const { useState, useMemo, useEffect, useRef } = React;
+        const { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } = window.Recharts;
+
+        // 2. สร้าง Components สำหรับไอคอน
+        const Trash2 = ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>;
+        const AlertTriangle = ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/></svg>;
+        const Recycle = ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M7 15.3 2.3 18 7 20.7"/><path d="M2.3 18A10 10 0 0 0 20 13"/><path d="M17 8.7 21.7 6 17 3.3"/><path d="M21.7 6A10 10 0 0 0 4 11"/></svg>;
+        const Upload = ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>;
+        const FileSpreadsheet = ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><path d="M8 13h2"/><path d="M8 17h2"/><path d="M14 13h2"/><path d="M14 17h2"/></svg>;
+        const MapPin = ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>;
+        const Activity = ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>;
+        const Maximize = ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg>;
+        const Minimize = ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M8 3v3a2 2 0 0 1-2 2H3"/><path d="M21 8h-3a2 2 0 0 1-2-2V3"/><path d="M3 16h3a2 2 0 0 1 2 2v3"/><path d="M16 21v-3a2 2 0 0 1 2-2h3"/></svg>;
+        const XIcon = ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>;
+        const ChevronLeft = ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><polyline points="15 18 9 12 15 6"></polyline></svg>;
+        const ChevronRight = ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><polyline points="9 18 15 12 9 6"></polyline></svg>;
+        const Lightbulb = ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1.3.5 2.6 1.5 3.5.8.8 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></svg>;
+
+        // 3. ตัวอย่างข้อมูลแบบสอบถามที่มีครบ 54 รายการ
+        const defaultCSV = `ประทับเวลา,เพศ,อายุ,อาชีพ,ที่พักอาศัย,ระดับความถี่ในการแยกขยะ,เหตุผลที่ท่านแยกขยะ (เลือกได้มากกว่า 1),ประเภทขยะที่ท่านแยกเป็นประจำ (เลือกได้มากกว่า 1),"เหตุผลที่ท่าน ""ไม่แยก"" หรือ ""แยกไม่สม่ำเสมอ"" (เลือกได้มากกว่า 1)",บริเวณที่ท่านอยู่ เข้าถึงจุดทิ้งขยะสะดวกหรือไม่,บริเวณที่ท่านอาศัยอยู่ มีการแยกประเภทของถังขยะหรือไม่,บริเวณที่ท่านอาศัยอยู่ มีถังแยกขยะให้เพียงพอหรือไม่,ระดับความเข้าใจเรื่องการคัดแยกขยะ,"ท่านมีความเชื่อมั่นในประสิทธิภาพในการจัดการขยะขององค์กรปกครองส่วนท้องถิ่น (เช่น เทศบาล, กรุงเทพมหานคร) ที่ท่านพักอาศัยอยู่แค่ไหน",คุณคิดว่าการแยกขยะในประเทศไทย ควรปรับปรุง เพิ่มเติม หรือแก้ไข ตรงไหนหรือไม่
+2026-04-22 13:40:40,หญิง,มากกว่า 45 ปี,ข้าราชการ,บ้าน,เป็นประจำทุกครั้ง,กังวลต่อผลกระทบด้านสิ่งแวดล้อม,"ขยะรีไซเคิล, ขยะเศษอาหาร, ขยะทั่วไป, ขยะอันตราย",รู้สึกว่าแยกไปสุดท้ายรถขยะก็เทรวมกันอยู่ดี,ใช่,ไม่มี,ไม่ใช่,ปานกลาง,ปานกลาง,เพิ่มจุดทิ้งขยะอันตรายและขยะอิเล็กทรอนิกส์
+2026-04-22 15:46:44,หญิง,18 - 24 ปี,นักเรียน/ นักศึกษา,คอนโดนิเนียม,บางครั้ง,แยกตามคนอื่น,"ขยะรีไซเคิล, ขยะเศษอาหาร","สถานที่ทิ้งขยะไม่มีถังแยกให้ชัดเจน",ใช่,มี,ใช่,ปานกลาง,น้อย,-
+2026-04-27 21:23:57,หญิง,18 - 24 ปี,นักเรียน/ นักศึกษา,บ้าน,บางครั้ง,เนื่องจากนโยบายของรัฐ,"ขยะเศษอาหาร, ขยะอันตราย","สถานที่ทิ้งขยะไม่มีถังแยกให้ชัดเจน, รู้สึกว่าแยกไปสุดท้ายรถขยะก็เทรวมกันอยู่ดี",ใช่,ไม่มี,ใช่,ปานกลาง,ปานกลาง,ควรเพิ่มถังขยะแยกประเภทให้มากขึ้น
+2026-04-27 21:25:08,หญิง,18 - 24 ปี,นักเรียน/ นักศึกษา,บ้าน,เป็นประจำทุกครั้ง,กังวลต่อผลกระทบด้านสิ่งแวดล้อม,"ขยะรีไซเคิล, ขยะเศษอาหาร","สถานที่ทิ้งขยะไม่มีถังแยกให้ชัดเจน, รู้สึกว่าแยกไปสุดท้ายรถขยะก็เทรวมกันอยู่ดี",ไม่ใช่,ไม่มี,ใช่,ปานกลาง,น้อย,-
+2026-04-27 21:30:44,หญิง,18 - 24 ปี,นักเรียน/ นักศึกษา,บ้าน,เกือบทุกครั้ง,ทำตามใจตัวเอง ไม่มีใครเหตุผล,"ขยะรีไซเคิล, ขยะเศษอาหาร, ขยะทั่วไป, ขยะอันตราย",สถานที่ทิ้งขยะไม่มีถังแยกให้ชัดเจน,ใช่,ไม่มี,ใช่,ปานกลาง,ปานกลาง,อยากให้มีรถขยะที่แยกประเภทชัดเจน
+2026-04-27 21:32:31,หญิง,18 - 24 ปี,นักเรียน/ นักศึกษา,คอนโดนิเนียม,บางครั้ง,กฎของคอนโด,ขยะเศษอาหาร,รู้สึกว่าแยกไปสุดท้ายรถขยะก็เทรวมกันอยู่ดี,ใช่,มี,ใช่,ดี,ปานกลาง,-
+2026-04-28 09:15:12,ชาย,25 - 34 ปี,พนักงานบริษัทเอกชน,หอพัก/อพาร์ทเม้นท์,ไม่เคยแยกเลย,ไม่มีเวลา,-,"สถานที่ทิ้งขยะไม่มีถังแยกให้ชัดเจน, ไม่รู้ว่าต้องแยกอย่างไร",ใช่,ไม่มี,ไม่ใช่,น้อย,น้อย,ถังขยะควรมีป้ายบอกชัดเจนว่าทิ้งอะไรได้บ้าง
+2026-04-28 10:20:05,ชาย,35 - 44 ปี,ธุรกิจส่วนตัว,บ้าน,เป็นประจำทุกครั้ง,สามารถนำไปขายได้เงิน,"ขยะรีไซเคิล, ขยะทั่วไป",-,ใช่,มี,ใช่,ดีมาก,ปานกลาง,-
+2026-04-28 11:10:00,หญิง,25 - 34 ปี,พนักงานบริษัทเอกชน,บ้าน,เกือบทุกครั้ง,กังวลต่อผลกระทบด้านสิ่งแวดล้อม,"ขยะรีไซเคิล, ขยะเศษอาหาร","สถานที่ทิ้งขยะไม่มีถังแยกให้ชัดเจน, ถังขยะแยกประเภทอยู่ไกล",ใช่,ไม่มี,ไม่ใช่,ปานกลาง,น้อย,รณรงค์ให้ความรู้อย่างจริงจัง
+2026-04-28 12:05:30,ชาย,18 - 24 ปี,นักเรียน/ นักศึกษา,หอพัก/อพาร์ทเม้นท์,บางครั้ง,ทำตามใจตัวเอง,"ขยะทั่วไป, ขยะรีไซเคิล","สถานที่ทิ้งขยะไม่มีถังแยกให้ชัดเจน, ไม่แน่ใจวิธีการแยกที่ถูกต้อง",ใช่,ไม่มี,ไม่ใช่,น้อย,น้อย,แก้ไขเรื่องรถขยะเทรวม
+2026-04-28 14:22:15,หญิง,35 - 44 ปี,แม่บ้าน,บ้าน,เป็นประจำทุกครั้ง,สุขอนามัยในบ้าน,"ขยะเศษอาหาร, ขยะรีไซเคิล, ขยะทั่วไป",-,ใช่,มี,ใช่,ดี,ดี,-
+2026-04-29 08:12:00,หญิง,18 - 24 ปี,นักเรียน/ นักศึกษา,หอพัก/อพาร์ทเม้นท์,บางครั้ง,กังวลต่อผลกระทบด้านสิ่งแวดล้อม,ขยะรีไซเคิล,รู้สึกว่าแยกไปสุดท้ายรถขยะก็เทรวมกันอยู่ดี,ใช่,ไม่มี,ไม่ใช่,ปานกลาง,น้อย,ควรแยกรถขยะให้ชัดเจน
+2026-04-29 08:35:10,ชาย,18 - 24 ปี,นักเรียน/ นักศึกษา,หอพัก/อพาร์ทเม้นท์,เกือบทุกครั้ง,สามารถนำไปขายได้เงิน,"ขยะรีไซเคิล, ขยะทั่วไป",สถานที่ทิ้งขยะไม่มีถังแยกให้ชัดเจน,ใช่,ไม่มี,ใช่,ปานกลาง,ปานกลาง,เพิ่มจุดทิ้งขยะ
+2026-04-29 09:10:25,หญิง,25 - 34 ปี,พนักงานบริษัทเอกชน,คอนโดนิเนียม,เป็นประจำทุกครั้ง,กฎของคอนโด,"ขยะรีไซเคิล, ขยะเศษอาหาร, ขยะทั่วไป",-,ใช่,มี,ใช่,ดี,ปานกลาง,-
+2026-04-29 09:45:00,ชาย,25 - 34 ปี,พนักงานบริษัทเอกชน,บ้าน,บางครั้ง,สุขอนามัยในบ้าน,ขยะเศษอาหาร,ไม่มีเวลา,ไม่ใช่,ไม่มี,ไม่ใช่,ปานกลาง,น้อย,อยากได้ถังแยกประเภทใกล้บ้าน
+2026-04-29 10:15:30,หญิง,35 - 44 ปี,ธุรกิจส่วนตัว,บ้าน,เกือบทุกครั้ง,กังวลต่อผลกระทบด้านสิ่งแวดล้อม,"ขยะรีไซเคิล, ขยะเศษอาหาร",รู้สึกว่าแยกไปสุดท้ายรถขยะก็เทรวมกันอยู่ดี,ใช่,มี,ใช่,ดี,น้อย,รัฐบาลควรจริงจังกว่านี้
+2026-04-29 10:50:45,หญิง,18 - 24 ปี,นักเรียน/ นักศึกษา,หอพัก/อพาร์ทเม้นท์,บางครั้ง,แยกตามคนอื่น,ขยะทั่วไป,สถานที่ทิ้งขยะไม่มีถังแยกให้ชัดเจน,ใช่,ไม่มี,ไม่ใช่,น้อย,น้อย,-
+2026-04-29 11:20:10,ชาย,18 - 24 ปี,นักเรียน/ นักศึกษา,บ้าน,เป็นประจำทุกครั้ง,กังวลต่อผลกระทบด้านสิ่งแวดล้อม,"ขยะรีไซเคิล, ขยะอันตราย",รู้สึกว่าแยกไปสุดท้ายรถขยะก็เทรวมกันอยู่ดี,ใช่,มี,ใช่,ดีมาก,ปานกลาง,-
+2026-04-29 12:05:00,หญิง,25 - 34 ปี,พนักงานบริษัทเอกชน,คอนโดนิเนียม,เกือบทุกครั้ง,กฎของคอนโด,"ขยะรีไซเคิล, ขยะเศษอาหาร",ถังขยะแยกประเภทอยู่ไกล,ใช่,มี,ไม่ใช่,ดี,ปานกลาง,ถังไม่พอ
+2026-04-29 12:40:15,ชาย,มากกว่า 45 ปี,ข้าราชการ,บ้าน,เป็นประจำทุกครั้ง,เนื่องจากนโยบายของรัฐ,"ขยะทั่วไป, ขยะรีไซเคิล, ขยะเศษอาหาร, ขยะอันตราย",-,ใช่,มี,ใช่,ดีมาก,ดี,จัดเก็บให้เป็นเวลา
+2026-04-29 13:10:30,หญิง,18 - 24 ปี,นักเรียน/ นักศึกษา,หอพัก/อพาร์ทเม้นท์,ไม่เคยแยกเลย,ไม่มีเวลา,-,"สถานที่ทิ้งขยะไม่มีถังแยกให้ชัดเจน, ไม่รู้ว่าต้องแยกอย่างไร",ใช่,ไม่มี,ไม่ใช่,น้อย,น้อย,ควรมีวิธีบอกที่ง่ายๆ
+2026-04-29 13:55:45,ชาย,25 - 34 ปี,ธุรกิจส่วนตัว,บ้าน,บางครั้ง,กังวลต่อผลกระทบด้านสิ่งแวดล้อม,ขยะรีไซเคิล,รู้สึกว่าแยกไปสุดท้ายรถขยะก็เทรวมกันอยู่ดี,ไม่ใช่,ไม่มี,ไม่ใช่,ปานกลาง,น้อย,-
+2026-04-29 14:20:00,หญิง,35 - 44 ปี,แม่บ้าน,บ้าน,เป็นประจำทุกครั้ง,สามารถนำไปขายได้เงิน,"ขยะรีไซเคิล, ขยะเศษอาหาร",-,ใช่,มี,ใช่,ดี,ปานกลาง,รับซื้อขยะให้ราคาสูงขึ้น
+2026-04-29 15:05:15,ชาย,18 - 24 ปี,นักเรียน/ นักศึกษา,คอนโดนิเนียม,เกือบทุกครั้ง,กฎของคอนโด,"ขยะทั่วไป, ขยะรีไซเคิล",สถานที่ทิ้งขยะไม่มีถังแยกให้ชัดเจน,ใช่,มี,ใช่,ดี,ปานกลาง,-
+2026-04-29 15:30:30,หญิง,18 - 24 ปี,นักเรียน/ นักศึกษา,บ้าน,บางครั้ง,แยกตามคนอื่น,ขยะเศษอาหาร,รู้สึกว่าแยกไปสุดท้ายรถขยะก็เทรวมกันอยู่ดี,ใช่,ไม่มี,ใช่,ปานกลาง,น้อย,เปลี่ยนรถขยะ
+2026-04-29 16:10:45,ชาย,25 - 34 ปี,พนักงานบริษัทเอกชน,หอพัก/อพาร์ทเม้นท์,เกือบทุกครั้ง,สุขอนามัยในบ้าน,"ขยะรีไซเคิล, ขยะเศษอาหาร",ไม่มีเวลา,ใช่,ไม่มี,ไม่ใช่,ปานกลาง,ปานกลาง,-
+2026-04-29 16:45:00,หญิง,มากกว่า 45 ปี,แม่บ้าน,บ้าน,เป็นประจำทุกครั้ง,กังวลต่อผลกระทบด้านสิ่งแวดล้อม,"ขยะรีไซเคิล, ขยะเศษอาหาร, ขยะทั่วไป",รู้สึกว่าแยกไปสุดท้ายรถขยะก็เทรวมกันอยู่ดี,ใช่,มี,ใช่,ดีมาก,น้อย,-
+2026-04-29 17:20:15,ชาย,35 - 44 ปี,ข้าราชการ,บ้าน,บางครั้ง,ทำตามใจตัวเอง ไม่มีใครเหตุผล,ขยะทั่วไป,สถานที่ทิ้งขยะไม่มีถังแยกให้ชัดเจน,ไม่ใช่,ไม่มี,ไม่ใช่,น้อย,น้อย,ถังขยะน้อยไป
+2026-04-29 18:05:30,หญิง,18 - 24 ปี,นักเรียน/ นักศึกษา,หอพัก/อพาร์ทเม้นท์,บางครั้ง,เนื่องจากนโยบายของรัฐ,ขยะอันตราย,ไม่แน่ใจวิธีการแยกที่ถูกต้อง,ใช่,ไม่มี,ไม่ใช่,ปานกลาง,ปานกลาง,-
+2026-04-29 18:30:45,ชาย,18 - 24 ปี,นักเรียน/ นักศึกษา,คอนโดนิเนียม,เป็นประจำทุกครั้ง,กฎของคอนโด,"ขยะรีไซเคิล, ขยะเศษอาหาร, ขยะทั่วไป",-,ใช่,มี,ใช่,ดี,ดี,-
+2026-04-29 19:15:00,หญิง,25 - 34 ปี,พนักงานบริษัทเอกชน,บ้าน,เกือบทุกครั้ง,กังวลต่อผลกระทบด้านสิ่งแวดล้อม,"ขยะรีไซเคิล, ขยะอันตราย",รู้สึกว่าแยกไปสุดท้ายรถขยะก็เทรวมกันอยู่ดี,ใช่,ไม่มี,ใช่,ดี,น้อย,-
+2026-04-29 19:50:15,ชาย,25 - 34 ปี,ธุรกิจส่วนตัว,หอพัก/อพาร์ทเม้นท์,ไม่เคยแยกเลย,ไม่มีเวลา,-,"สถานที่ทิ้งขยะไม่มีถังแยกให้ชัดเจน, ไม่รู้ว่าต้องแยกอย่างไร",ใช่,ไม่มี,ไม่ใช่,น้อย,น้อย,-
+2026-04-29 20:25:30,หญิง,18 - 24 ปี,นักเรียน/ นักศึกษา,บ้าน,บางครั้ง,แยกตามคนอื่น,ขยะรีไซเคิล,รู้สึกว่าแยกไปสุดท้ายรถขยะก็เทรวมกันอยู่ดี,ใช่,ไม่มี,ไม่ใช่,ปานกลาง,ปานกลาง,เปลี่ยนวิธีเก็บขยะ
+2026-04-29 21:10:45,ชาย,35 - 44 ปี,พนักงานบริษัทเอกชน,คอนโดนิเนียม,เป็นประจำทุกครั้ง,กังวลต่อผลกระทบด้านสิ่งแวดล้อม,"ขยะรีไซเคิล, ขยะเศษอาหาร, ขยะอันตราย",-,ใช่,มี,ใช่,ดีมาก,ปานกลาง,-
+2026-04-29 21:45:00,หญิง,มากกว่า 45 ปี,ธุรกิจส่วนตัว,บ้าน,เกือบทุกครั้ง,สามารถนำไปขายได้เงิน,"ขยะรีไซเคิล, ขยะเศษอาหาร",ถังขยะแยกประเภทอยู่ไกล,ไม่ใช่,ไม่มี,ไม่ใช่,ดี,น้อย,มีคนมารับซื้อถึงบ้าน
+2026-04-30 08:15:15,ชาย,18 - 24 ปี,นักเรียน/ นักศึกษา,หอพัก/อพาร์ทเม้นท์,บางครั้ง,ทำตามใจตัวเอง ไม่มีใครเหตุผล,ขยะทั่วไป,สถานที่ทิ้งขยะไม่มีถังแยกให้ชัดเจน,ใช่,ไม่มี,ไม่ใช่,ปานกลาง,น้อย,-
+2026-04-30 08:50:30,หญิง,18 - 24 ปี,นักเรียน/ นักศึกษา,บ้าน,บางครั้ง,แยกตามคนอื่น,ขยะรีไซเคิล,รู้สึกว่าแยกไปสุดท้ายรถขยะก็เทรวมกันอยู่ดี,ใช่,มี,ใช่,ปานกลาง,ปานกลาง,-
+2026-04-30 09:25:45,ชาย,25 - 34 ปี,พนักงานบริษัทเอกชน,คอนโดนิเนียม,เป็นประจำทุกครั้ง,กฎของคอนโด,"ขยะรีไซเคิล, ขยะเศษอาหาร",-,ใช่,มี,ใช่,ดี,ปานกลาง,-
+2026-04-30 10:10:00,หญิง,25 - 34 ปี,ธุรกิจส่วนตัว,บ้าน,เกือบทุกครั้ง,กังวลต่อผลกระทบด้านสิ่งแวดล้อม,"ขยะรีไซเคิล, ขยะทั่วไป",รู้สึกว่าแยกไปสุดท้ายรถขยะก็เทรวมกันอยู่ดี,ใช่,ไม่มี,ใช่,ดี,น้อย,อยากให้มีมาตรการลงโทษ
+2026-04-30 10:45:15,ชาย,35 - 44 ปี,ข้าราชการ,บ้าน,บางครั้ง,สุขอนามัยในบ้าน,ขยะเศษอาหาร,สถานที่ทิ้งขยะไม่มีถังแยกให้ชัดเจน,ไม่ใช่,ไม่มี,ไม่ใช่,ปานกลาง,น้อย,-
+2026-04-30 11:20:30,หญิง,18 - 24 ปี,นักเรียน/ นักศึกษา,หอพัก/อพาร์ทเม้นท์,ไม่เคยแยกเลย,ไม่มีเวลา,-,"สถานที่ทิ้งขยะไม่มีถังแยกให้ชัดเจน, ถังขยะแยกประเภทอยู่ไกล",ใช่,ไม่มี,ไม่ใช่,น้อย,น้อย,-
+2026-04-30 12:05:45,ชาย,18 - 24 ปี,นักเรียน/ นักศึกษา,บ้าน,เกือบทุกครั้ง,กังวลต่อผลกระทบด้านสิ่งแวดล้อม,"ขยะรีไซเคิล, ขยะอันตราย",รู้สึกว่าแยกไปสุดท้ายรถขยะก็เทรวมกันอยู่ดี,ใช่,มี,ใช่,ดี,ปานกลาง,-
+2026-04-30 12:40:00,หญิง,25 - 34 ปี,พนักงานบริษัทเอกชน,คอนโดนิเนียม,เป็นประจำทุกครั้ง,กฎของคอนโด,"ขยะรีไซเคิล, ขยะเศษอาหาร, ขยะทั่วไป",-,ใช่,มี,ใช่,ดีมาก,ดี,-
+2026-04-30 13:15:15,ชาย,มากกว่า 45 ปี,ธุรกิจส่วนตัว,บ้าน,บางครั้ง,สามารถนำไปขายได้เงิน,ขยะรีไซเคิล,ไม่มีเวลา,ใช่,ไม่มี,ใช่,ดี,ปานกลาง,-
+2026-04-30 14:00:30,หญิง,35 - 44 ปี,แม่บ้าน,บ้าน,เป็นประจำทุกครั้ง,สุขอนามัยในบ้าน,"ขยะเศษอาหาร, ขยะรีไซเคิล",รู้สึกว่าแยกไปสุดท้ายรถขยะก็เทรวมกันอยู่ดี,ใช่,มี,ใช่,ดี,น้อย,-
+2026-04-30 14:35:45,ชาย,18 - 24 ปี,นักเรียน/ นักศึกษา,หอพัก/อพาร์ทเม้นท์,บางครั้ง,ทำตามใจตัวเอง ไม่มีใครเหตุผล,ขยะทั่วไป,สถานที่ทิ้งขยะไม่มีถังแยกให้ชัดเจน,ใช่,ไม่มี,ไม่ใช่,ปานกลาง,ปานกลาง,-
+2026-04-30 15:10:00,หญิง,18 - 24 ปี,นักเรียน/ นักศึกษา,คอนโดนิเนียม,เกือบทุกครั้ง,แยกตามคนอื่น,"ขยะรีไซเคิล, ขยะเศษอาหาร",ถังขยะแยกประเภทอยู่ไกล,ใช่,มี,ไม่ใช่,ปานกลาง,น้อย,-
+2026-04-30 15:45:15,ชาย,25 - 34 ปี,พนักงานบริษัทเอกชน,บ้าน,บางครั้ง,กังวลต่อผลกระทบด้านสิ่งแวดล้อม,ขยะอันตราย,รู้สึกว่าแยกไปสุดท้ายรถขยะก็เทรวมกันอยู่ดี,ไม่ใช่,ไม่มี,ไม่ใช่,ดี,น้อย,อยากให้มีรถรับขยะอันตรายโดยเฉพาะ
+2026-04-30 16:30:30,หญิง,25 - 34 ปี,ข้าราชการ,บ้าน,เป็นประจำทุกครั้ง,เนื่องจากนโยบายของรัฐ,"ขยะรีไซเคิล, ขยะเศษอาหาร, ขยะทั่วไป",-,ใช่,มี,ใช่,ดีมาก,ดี,-
+2026-04-30 17:05:45,ชาย,35 - 44 ปี,ธุรกิจส่วนตัว,คอนโดนิเนียม,เกือบทุกครั้ง,กฎของคอนโด,"ขยะรีไซเคิล, ขยะทั่วไป",ไม่มีเวลา,ใช่,มี,ใช่,ดี,ปานกลาง,-
+2026-04-30 17:40:00,หญิง,18 - 24 ปี,นักเรียน/ นักศึกษา,หอพัก/อพาร์ทเม้นท์,ไม่เคยแยกเลย,ไม่มีเวลา,-,"สถานที่ทิ้งขยะไม่มีถังแยกให้ชัดเจน, ไม่รู้ว่าต้องแยกอย่างไร",ใช่,ไม่มี,ไม่ใช่,น้อย,น้อย,-
+2026-04-30 18:15:15,ชาย,18 - 24 ปี,นักเรียน/ นักศึกษา,บ้าน,บางครั้ง,แยกตามคนอื่น,ขยะรีไซเคิล,รู้สึกว่าแยกไปสุดท้ายรถขยะก็เทรวมกันอยู่ดี,ใช่,ไม่มี,ใช่,ปานกลาง,ปานกลาง,-
+2026-04-30 18:50:30,หญิง,มากกว่า 45 ปี,แม่บ้าน,บ้าน,เป็นประจำทุกครั้ง,สามารถนำไปขายได้เงิน,"ขยะรีไซเคิล, ขยะเศษอาหาร",-,ใช่,มี,ใช่,ดีมาก,ปานกลาง,-
+2026-04-30 19:25:45,ชาย,25 - 34 ปี,พนักงานบริษัทเอกชน,หอพัก/อพาร์ทเม้นท์,บางครั้ง,สุขอนามัยในบ้าน,ขยะเศษอาหาร,สถานที่ทิ้งขยะไม่มีถังแยกให้ชัดเจน,ใช่,ไม่มี,ไม่ใช่,ปานกลาง,น้อย,-`;
+
+        const COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316'];
+        const INSIGHT_COLORS = ['#3b82f6', '#ec4899', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444', '#14b8a6', '#f97316'];
+        const PIE_COLORS = ['#3b82f6', '#ec4899', '#10b981', '#f59e0b', '#8b5cf6'];
+
+        const TOTAL_PAGES = 5;
+
+        function App() {
+            const [csvDataStr, setCsvDataStr] = useState(defaultCSV);
+            const [fileName, setFileName] = useState("ข้อมูล_54รายการ.csv");
+            const [currentPage, setCurrentPage] = useState(0); 
+            const [isFullscreen, setIsFullscreen] = useState(false);
+            const [isCssFallback, setIsCssFallback] = useState(false);
+            
+            const [selectedFact, setSelectedFact] = useState(null); 
+            const [selectedInsight, setSelectedInsight] = useState(null); 
+            
+            // ใช้ควบคุมการเลื่อนและ Snap
+            const dashboardRef = useRef(null);
+            const scrollContainerRef = useRef(null);
+
+            useEffect(() => {
+                const handleFullscreenChange = () => {
+                    setIsFullscreen(!!document.fullscreenElement);
+                };
+                document.addEventListener('fullscreenchange', handleFullscreenChange);
+                return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+            }, []);
+
+            const toggleFullScreen = () => {
+                if (!document.fullscreenElement && !isCssFallback) {
+                    if (dashboardRef.current && dashboardRef.current.requestFullscreen) {
+                        dashboardRef.current.requestFullscreen().catch(err => {
+                            console.warn("Native fullscreen blocked, using CSS fallback.");
+                            setIsCssFallback(true);
+                            setIsFullscreen(true);
+                        });
+                    } else {
+                        setIsCssFallback(true);
+                        setIsFullscreen(true);
+                    }
+                } else {
+                    if (document.fullscreenElement && document.exitFullscreen) {
+                        document.exitFullscreen();
+                    } else if (isCssFallback) {
+                        setIsCssFallback(false);
+                        setIsFullscreen(false);
+                    }
+                }
+            };
+
+            const parseCSV = (text) => {
+                const result = [];
+                let row = [];
+                let inQuotes = false;
+                let val = '';
+                for (let i = 0; i < text.length; i++) {
+                    const char = text[i];
+                    if (char === '"') {
+                        if (inQuotes && text[i+1] === '"') { val += '"'; i++; }
+                        else { inQuotes = !inQuotes; }
+                    } else if (char === ',' && !inQuotes) {
+                        row.push(val.trim()); val = '';
+                    } else if (char === '\n' && !inQuotes) {
+                        row.push(val.trim()); result.push(row); row = []; val = '';
+                    } else {
+                        if (char !== '\r') val += char;
+                    }
+                }
+                if (val || text[text.length-1] === ',') row.push(val.trim());
+                if (row.length > 0) result.push(row);
+                
+                if (result.length > 0) {
+                    const headers = result[0].map(h => h.replace(/^"|"$/g, '').trim());
+                    return result.slice(1).filter(r => r.length === headers.length || r.length > 1).map(row => {
+                        const obj = {};
+                        headers.forEach((h, i) => {
+                            obj[h] = row[i] ? row[i].replace(/^"|"$/g, '').trim() : '';
+                        });
+                        return obj;
+                    });
+                }
+                return [];
+            };
+
+            // ฟังก์ชันสำหรับเปลี่ยนหน้า พร้อมเลื่อนจอไปตำแหน่งบนสุดให้ทันที
+            const changePage = (pageIndex) => {
+                setCurrentPage(pageIndex);
+                if (scrollContainerRef.current) {
+                    scrollContainerRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+                }
+            };
+
+            const handleFileUpload = (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    setFileName(file.name);
+                    const reader = new FileReader();
+                    reader.onload = (evt) => {
+                        setCsvDataStr(evt.target.result);
+                        changePage(0);
+                    };
+                    reader.readAsText(file, "UTF-8");
+                }
+            };
+
+            const parsedData = useMemo(() => parseCSV(csvDataStr), [csvDataStr]);
+
+            const countFrequencies = (data, keyword, splitByComma = false) => {
+                const counts = {};
+                data.forEach(row => {
+                    const key = Object.keys(row).find(k => k.includes(keyword));
+                    if (key && row[key] && row[key] !== '-' && row[key] !== '') {
+                        if (splitByComma) {
+                            const items = row[key].split(',').map(s => s.trim());
+                            items.forEach(item => {
+                                if(item) counts[item] = (counts[item] || 0) + 1;
+                            });
+                        } else {
+                            const val = row[key].trim();
+                            if(val) counts[val] = (counts[val] || 0) + 1;
+                        }
+                    }
+                });
+                return Object.keys(counts)
+                .map(k => ({ name: k, value: counts[k] }))
+                .sort((a,b) => b.value - a.value);
+            };
+
+            const getCrossTabData = (data, mainColKeyword, subColKeyword, splitSubByComma = false) => {
+                const resultObj = {};
+                const subCategories = new Set();
+
+                data.forEach(row => {
+                    const mainKey = Object.keys(row).find(k => k.includes(mainColKeyword));
+                    const subKey = Object.keys(row).find(k => k.includes(subColKeyword));
+
+                    if (mainKey && subKey && row[mainKey] && row[subKey] && row[mainKey] !== '-' && row[subKey] !== '-') {
+                        const mainVal = row[mainKey].trim();
+                        let subVals = [row[subKey].trim()];
+
+                        if (splitSubByComma) {
+                            subVals = row[subKey].split(',').map(s => s.trim()).filter(s => s);
+                        }
+
+                        if (!resultObj[mainVal]) resultObj[mainVal] = { name: mainVal };
+
+                        subVals.forEach(subVal => {
+                            subCategories.add(subVal);
+                            resultObj[mainVal][subVal] = (resultObj[mainVal][subVal] || 0) + 1;
+                        });
+                    }
+                });
+
+                const resultArr = Object.values(resultObj);
+                resultArr.forEach(item => {
+                    subCategories.forEach(sub => {
+                        if (item[sub] === undefined) item[sub] = 0;
+                    });
+                });
+
+                return { data: resultArr, categories: Array.from(subCategories) };
+            };
+
+            const frequencyData = useMemo(() => countFrequencies(parsedData, 'ระดับความถี่ในการแยกขยะ'), [parsedData]);
+            const reasonsSeparateData = useMemo(() => countFrequencies(parsedData, 'เหตุผลที่ท่านแยกขยะ', true), [parsedData]);
+            const reasonsNotSeparateData = useMemo(() => countFrequencies(parsedData, 'ไม่แยก', true).slice(0, 5), [parsedData]);
+            const wasteTypeData = useMemo(() => countFrequencies(parsedData, 'ประเภทขยะที่ท่านแยกเป็นประจำ', true), [parsedData]);
+
+            const genderData = useMemo(() => countFrequencies(parsedData, 'เพศ'), [parsedData]);
+            const ageData = useMemo(() => countFrequencies(parsedData, 'อายุ'), [parsedData]);
+            const occupationData = useMemo(() => countFrequencies(parsedData, 'อาชีพ'), [parsedData]);
+            const residenceData = useMemo(() => countFrequencies(parsedData, 'ที่พักอาศัย'), [parsedData]);
+
+            const understandingData = useMemo(() => countFrequencies(parsedData, 'ระดับความเข้าใจ'), [parsedData]);
+            const confidenceData = useMemo(() => countFrequencies(parsedData, 'ความเชื่อมั่น'), [parsedData]);
+            const binAvailabilityData = useMemo(() => countFrequencies(parsedData, 'มีการแยกประเภทของถังขยะ'), [parsedData]);
+            const accessData = useMemo(() => countFrequencies(parsedData, 'เข้าถึงจุดทิ้งขยะสะดวก'), [parsedData]);
+
+            const CustomTooltip = ({ active, payload }) => {
+                if (active && payload && payload.length) {
+                    return (
+                        <div className="bg-white p-4 border border-gray-100 rounded-xl shadow-xl text-sm z-50">
+                            <p className="font-semibold text-gray-800 mb-1">{payload[0].payload.name}</p>
+                            {payload.map((entry, index) => (
+                                <p key={index} style={{ color: entry.color || entry.fill }} className="mt-1">
+                                    {entry.name}: {entry.value} คน
+                                </p>
+                            ))}
+                        </div>
+                    );
+                }
+                return null;
+            };
+
+            const quickFactsData = [
+                { 
+                    id: 1, icon: <Trash2 className="text-red-500 w-8 h-8" />, bg: 'bg-red-50', 
+                    title: '26.95 ล้านตัน/ปี', desc: 'ปริมาณขยะมูลฝอยในไทย',
+                    details: 'ประเทศไทยมีปริมาณขยะมูลฝอยเกิดขึ้นกว่า 26.95 ล้านตันในปี 2566 ซึ่งคิดเป็นค่าเฉลี่ยที่คนไทย 1 คน สร้างขยะถึง 1.12 กิโลกรัมต่อวัน'
+                },
+                { 
+                    id: 2, icon: <AlertTriangle className="text-orange-500 w-8 h-8" />, bg: 'bg-orange-50', 
+                    title: '27.6% กำจัดผิดวิธี', desc: 'ทำให้เกิดมลภาวะและตกค้าง',
+                    details: 'ขยะจำนวนมหาศาลไม่ได้ถูกนำไปกำจัดอย่างถูกวิธี (เช่น การเทกองรวมกัน หรือการเผากลางแจ้ง) ซึ่งนำไปสู่ปัญหามลพิษทางอากาศ (PM 2.5) น้ำเสีย และปัญหาไมโครพลาสติกที่ตกค้าง'
+                },
+                { 
+                    id: 3, icon: <Recycle className="text-emerald-500 w-8 h-8" />, bg: 'bg-emerald-50', 
+                    title: 'รีไซเคิลเพียง 25%', desc: 'จากขยะพลาสติกกว่า 2 ล้านตัน',
+                    details: 'แม้ว่าขยะพลาสติกจะเกิดขึ้นกว่า 2 ล้านตัน แต่มีการนำกลับมาใช้ประโยชน์ใหม่เพียงแค่ประมาณ 25% หรือ 5 แสนตันเท่านั้น ส่วนที่เหลือมักจะถูกทิ้งปะปนกับขยะทั่วไปทำให้ยากต่อการคัดแยกนำไปรีไซเคิลใหม่'
+                },
+                { 
+                    id: 4, icon: <MapPin className="text-blue-500 w-8 h-8" />, bg: 'bg-blue-50', 
+                    title: 'กทม. ขยะสูงสุด', desc: 'เฉลี่ย 12,748 ตันต่อวัน',
+                    details: 'กรุงเทพมหานครเป็นพื้นที่ที่มีประชากรหนาแน่นและมีปริมาณขยะสูงสุดในประเทศ เฉลี่ยสูงถึง 12,748 ตันต่อวัน ซึ่งต้องใช้งบประมาณในการจัดเก็บและกำจัดหลายพันล้านบาทต่อปี'
+                }
+            ];
+
+            const pageTitles = [
+                "ภาพรวมสถานการณ์ขยะ",
+                "ข้อมูลประชากรศาสตร์ (Demographics)",
+                "พฤติกรรม & สถิติ (Behavior)",
+                "โครงสร้างพื้นฐาน & ความเชื่อมั่น (Infrastructure)",
+                "ข้อเสนอแนะเพิ่มเติม (Feedback)"
+            ];
+
+            const handleNextPage = () => changePage(Math.min(TOTAL_PAGES - 1, currentPage + 1));
+            const handlePrevPage = () => changePage(Math.max(0, currentPage - 1));
+
+            // Component ย่อย SnapBlock เพื่อสร้างกรอบ Snap สำหรับเลื่อนทีละบล็อก
+            const SnapBlock = ({ children }) => (
+                <div className="snap-center w-full flex items-center justify-center min-h-[85vh] py-8">
+                    {children}
+                </div>
+            );
+
+            // Component ย่อย ChartCard ปรับขนาดให้ใหญ่พอดีหน้าจอ
+            const ChartCard = ({ title, children, insightConfig }) => {
+                return (
+                    <div className="bg-white p-6 md:p-8 rounded-3xl shadow-md border border-gray-200 flex flex-col w-full max-w-4xl mx-auto h-[60vh] min-h-[400px] max-h-[600px]">
+                        <div className="flex justify-between items-start mb-6">
+                            <h2 className="text-xl md:text-2xl font-bold text-gray-800 pr-2">{title}</h2>
+                            {insightConfig && (
+                                <button 
+                                    onClick={() => setSelectedInsight(insightConfig)}
+                                    className="flex items-center gap-2 text-sm md:text-base font-bold text-emerald-600 bg-emerald-50 hover:bg-emerald-100 px-4 py-2 rounded-full transition-colors flex-shrink-0 shadow-sm"
+                                    title="คลิกเพื่อดูข้อมูลเจาะลึกแบบเปรียบเทียบ"
+                                >
+                                    <Lightbulb className="w-4 h-4 md:w-5 md:h-5" /> วิเคราะห์
+                                </button>
+                            )}
+                        </div>
+                        <div className="flex-grow w-full h-full relative">
+                            <ResponsiveContainer width="100%" height="100%">
+                                {children}
+                            </ResponsiveContainer>
+                        </div>
+                    </div>
+                );
+            };
+
+            return (
+                <div ref={dashboardRef} className={`text-gray-800 bg-[#f8fafc] w-full flex flex-col overflow-hidden ${isCssFallback || isFullscreen ? 'fixed inset-0 z-50 h-screen' : 'h-screen max-h-screen'}`}>
+                    
+                    {/* Header Bar - เล็กกะทัดรัดขึ้น */}
+                    <div className="bg-white px-6 py-4 shadow-sm border-b border-gray-200 flex justify-between items-center z-10 flex-shrink-0">
+                        <div className="flex items-center gap-3">
+                            <div className="bg-emerald-100 p-2 rounded-xl text-emerald-600">
+                                <Recycle className="h-6 w-6" />
+                            </div>
+                            <div>
+                                <h1 className="text-xl font-extrabold text-gray-800 leading-tight">Waste Separation Dashboard</h1>
+                                <p className="text-xs text-gray-500 font-medium">ตอบแบบสอบถามทั้งหมด {parsedData.length} รายการ</p>
+                            </div>
+                        </div>
+                        
+                        <div className="flex items-center gap-3">
+                            {!isFullscreen && (
+                                <div className="hidden md:flex text-xs text-gray-400 items-center gap-1.5 font-medium mr-2">
+                                    <FileSpreadsheet className="w-4 h-4" /> {fileName}
+                                </div>
+                            )}
+                            {!isFullscreen && (
+                                <label className="cursor-pointer bg-emerald-50 text-emerald-700 px-4 py-2 rounded-xl font-semibold hover:bg-emerald-100 transition-all flex items-center gap-2 border border-emerald-200 text-sm">
+                                    <Upload className="w-4 h-4" />
+                                    <span className="hidden sm:inline">อัปโหลด CSV</span>
+                                    <input type="file" accept=".csv" className="hidden" onChange={handleFileUpload} />
+                                </label>
+                            )}
+                            <button 
+                                onClick={toggleFullScreen}
+                                className="bg-white text-gray-700 p-2 sm:px-4 sm:py-2 rounded-xl font-semibold hover:bg-gray-50 transition-all flex items-center gap-2 border border-gray-200 text-sm shadow-sm"
+                            >
+                                {isFullscreen ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
+                                <span className="hidden sm:inline">{isFullscreen ? 'ย่อจอ' : 'เต็มจอ'}</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Main Content Area (Scroll Container with Snap) */}
+                    <div 
+                        ref={scrollContainerRef}
+                        className="flex-grow overflow-y-auto no-scrollbar relative bg-[#f1f5f9] snap-y snap-mandatory scroll-smooth"
+                    >
+                        <div className="max-w-6xl mx-auto w-full px-4 md:px-8 pb-20">
+                            
+                            {/* หน้าชื่อเรื่อง */}
+                            <div className="snap-start pt-8 mb-2">
+                                <div className="pb-2 border-b-2 border-gray-200 inline-block">
+                                    <h2 className="text-2xl font-bold text-gray-800 text-emerald-700">
+                                        ส่วนที่ {currentPage + 1}: {pageTitles[currentPage]}
+                                    </h2>
+                                </div>
+                            </div>
+
+                            {/* --- PAGE 0: OVERVIEW --- */}
+                            {currentPage === 0 && (
+                                <div className="flex flex-col w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
+                                    <SnapBlock>
+                                        <div className="w-full">
+                                            <div className="bg-white p-8 rounded-3xl shadow-sm border border-gray-200 mb-8 text-center max-w-4xl mx-auto">
+                                                <h2 className="text-3xl font-extrabold text-gray-800 mb-4">ภาพรวมปัญหาขยะในประเทศไทย</h2>
+                                                <p className="text-gray-500 leading-relaxed">
+                                                    ก่อนที่จะไปดูผลลัพธ์จากแบบสอบถาม เรามาทำความเข้าใจเกี่ยวกับวิกฤตขยะที่ประเทศไทยกำลังเผชิญอยู่ในปัจจุบัน เพื่อให้เห็นถึงความสำคัญของการแยกขยะ
+                                                </p>
+                                            </div>
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+                                                {quickFactsData.map((stat) => (
+                                                    <div 
+                                                        key={stat.id} 
+                                                        onClick={() => setSelectedFact(stat)}
+                                                        className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 flex items-start gap-5 cursor-pointer hover:shadow-lg hover:border-emerald-300 transition-all transform hover:-translate-y-1"
+                                                    >
+                                                        <div className={`${stat.bg} p-4 rounded-2xl`}>{stat.icon}</div>
+                                                        <div>
+                                                            <h3 className="font-bold text-gray-800 text-xl mb-1">{stat.title}</h3>
+                                                            <p className="text-sm text-gray-600 mb-3">{stat.desc}</p>
+                                                            <span className="inline-flex items-center text-xs font-semibold text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-full">
+                                                                คลิกอ่านเพิ่มเติม &rarr;
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </SnapBlock>
+                                </div>
+                            )}
+
+                            {/* --- PAGE 1: DEMOGRAPHICS --- */}
+                            {currentPage === 1 && (
+                                <div className="flex flex-col w-full animate-in fade-in slide-in-from-right-8 duration-500">
+                                    <SnapBlock>
+                                        <ChartCard title="สัดส่วนเพศ" insightConfig={{ title: 'การแยกขยะเปรียบเทียบตามเพศ', mainCol: 'เพศ', subCol: 'ระดับความถี่ในการแยกขยะ' }}>
+                                            <PieChart>
+                                                <Pie data={genderData} cx="50%" cy="50%" innerRadius={0} outerRadius="80%" dataKey="value" label={({name, percent}) => `${name} ${(percent * 100).toFixed(0)}%`}>
+                                                    {genderData.map((entry, index) => {
+                                                        const color = entry.name === 'ชาย' ? '#3b82f6' : (entry.name === 'หญิง' ? '#ec4899' : PIE_COLORS[index % PIE_COLORS.length]);
+                                                        return <Cell key={`cell-${index}`} fill={color} />;
+                                                    })}
+                                                </Pie>
+                                                <Tooltip content={<CustomTooltip />} /> <Legend wrapperStyle={{fontSize: '14px', paddingTop: '10px'}} />
+                                            </PieChart>
+                                        </ChartCard>
+                                    </SnapBlock>
+
+                                    <SnapBlock>
+                                        <ChartCard title="ช่วงอายุของผู้ตอบแบบสอบถาม" insightConfig={{ title: 'ประเภทขยะที่แยกเปรียบเทียบตามอายุ', mainCol: 'อายุ', subCol: 'ประเภทขยะที่ท่านแยกเป็นประจำ', splitSubByComma: true }}>
+                                            <BarChart data={ageData} margin={{ top: 20, right: 30, left: 0, bottom: 20 }}>
+                                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eee" />
+                                                <XAxis dataKey="name" tick={{fontSize: 14}} />
+                                                <YAxis tick={{fontSize: 14}} />
+                                                <Tooltip content={<CustomTooltip />} />
+                                                <Bar dataKey="value" fill="#8b5cf6" radius={[6, 6, 0, 0]} barSize={60} />
+                                            </BarChart>
+                                        </ChartCard>
+                                    </SnapBlock>
+
+                                    <SnapBlock>
+                                        <ChartCard title="อาชีพ" insightConfig={{ title: 'ความถี่ในการแยกขยะเปรียบเทียบตามอาชีพ', mainCol: 'อาชีพ', subCol: 'ระดับความถี่ในการแยกขยะ' }}>
+                                            <BarChart layout="vertical" data={occupationData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                                                <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#eee"/>
+                                                <XAxis type="number" tick={{fontSize: 14}} />
+                                                <YAxis dataKey="name" type="category" width={140} tick={{fontSize: 14}} />
+                                                <Tooltip content={<CustomTooltip />} />
+                                                <Bar dataKey="value" fill="#f59e0b" radius={[0, 6, 6, 0]} barSize={30} />
+                                            </BarChart>
+                                        </ChartCard>
+                                    </SnapBlock>
+
+                                    <SnapBlock>
+                                        <ChartCard title="ประเภทที่พักอาศัย" insightConfig={{ title: 'เพศของผู้ตอบเปรียบเทียบตามที่พักอาศัย (ใครอยู่ไหนมากสุด)', mainCol: 'ที่พักอาศัย', subCol: 'เพศ' }}>
+                                            <PieChart>
+                                                <Pie data={residenceData} cx="50%" cy="50%" innerRadius="40%" outerRadius="80%" paddingAngle={3} dataKey="value" label={({name, percent}) => `${name} ${(percent * 100).toFixed(0)}%`}>
+                                                    {residenceData.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
+                                                </Pie>
+                                                <Tooltip content={<CustomTooltip />} /> <Legend wrapperStyle={{fontSize: '14px', paddingTop: '10px'}} />
+                                            </PieChart>
+                                        </ChartCard>
+                                    </SnapBlock>
+                                </div>
+                            )}
+
+                            {/* --- PAGE 2: BEHAVIOR --- */}
+                            {currentPage === 2 && (
+                                <div className="flex flex-col w-full animate-in fade-in slide-in-from-right-8 duration-500">
+                                    <SnapBlock>
+                                        <ChartCard title="ระดับความถี่ในการแยกขยะ" insightConfig={{ title: 'ความถี่ในการแยกขยะเปรียบเทียบตามที่พักอาศัย', mainCol: 'ระดับความถี่ในการแยกขยะ', subCol: 'ที่พักอาศัย' }}>
+                                            <PieChart>
+                                                <Pie data={frequencyData} cx="50%" cy="50%" innerRadius="40%" outerRadius="80%" paddingAngle={5} dataKey="value" label={({name, percent}) => `${name} ${(percent * 100).toFixed(0)}%`}>
+                                                    {frequencyData.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
+                                                </Pie>
+                                                <Tooltip content={<CustomTooltip />} /> <Legend wrapperStyle={{fontSize: '14px', paddingTop: '10px'}} />
+                                            </PieChart>
+                                        </ChartCard>
+                                    </SnapBlock>
+
+                                    <SnapBlock>
+                                        <ChartCard title="ประเภทขยะที่แยกเป็นประจำ" insightConfig={{ title: 'ประเภทขยะที่แยกเปรียบเทียบตามเพศ', mainCol: 'เพศ', subCol: 'ประเภทขยะที่ท่านแยกเป็นประจำ', splitSubByComma: true }}>
+                                            <BarChart data={wasteTypeData} margin={{ top: 20, right: 30, left: 20, bottom: 40 }}>
+                                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eee" />
+                                                <XAxis dataKey="name" tick={{fontSize: 14}} angle={-15} textAnchor="end" />
+                                                <YAxis tick={{fontSize: 14}} />
+                                                <Tooltip content={<CustomTooltip />} />
+                                                <Bar dataKey="value" fill="#10b981" radius={[6, 6, 0, 0]} barSize={50}>
+                                                    {wasteTypeData.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
+                                                </Bar>
+                                            </BarChart>
+                                        </ChartCard>
+                                    </SnapBlock>
+
+                                    <SnapBlock>
+                                        <ChartCard title="เหตุผลที่แยกขยะ">
+                                            <BarChart layout="vertical" data={reasonsSeparateData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                                                <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#eee"/>
+                                                <XAxis type="number" tick={{fontSize: 14}} />
+                                                <YAxis dataKey="name" type="category" width={160} tick={{fontSize: 14}} tickFormatter={(val) => val.length > 25 ? val.substring(0,25)+'...' : val} />
+                                                <Tooltip content={<CustomTooltip />} />
+                                                <Bar dataKey="value" fill="#3b82f6" radius={[0, 6, 6, 0]} barSize={30} />
+                                            </BarChart>
+                                        </ChartCard>
+                                    </SnapBlock>
+
+                                    <SnapBlock>
+                                        <ChartCard title="อุปสรรค / เหตุผลที่ 'ไม่แยก' ขยะ">
+                                            <BarChart layout="vertical" data={reasonsNotSeparateData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                                                <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#eee"/>
+                                                <XAxis type="number" tick={{fontSize: 14}} />
+                                                <YAxis dataKey="name" type="category" width={160} tick={{fontSize: 14}} tickFormatter={(val) => val.length > 25 ? val.substring(0,25)+'...' : val} />
+                                                <Tooltip content={<CustomTooltip />} />
+                                                <Bar dataKey="value" fill="#ef4444" radius={[0, 6, 6, 0]} barSize={30} />
+                                            </BarChart>
+                                        </ChartCard>
+                                    </SnapBlock>
+                                </div>
+                            )}
+
+                            {/* --- PAGE 3: INFRASTRUCTURE --- */}
+                            {currentPage === 3 && (
+                                <div className="flex flex-col w-full animate-in fade-in slide-in-from-right-8 duration-500">
+                                    <SnapBlock>
+                                        <ChartCard title="ที่พักอาศัยมีการแยกประเภทของถังขยะหรือไม่?" insightConfig={{ title: 'การมีถังขยะแยกประเภทเปรียบเทียบตามที่พักอาศัย', mainCol: 'ที่พักอาศัย', subCol: 'มีการแยกประเภทของถังขยะ' }}>
+                                            <PieChart>
+                                                <Pie data={binAvailabilityData} cx="50%" cy="50%" outerRadius="80%" dataKey="value" label={({name, percent}) => `${name} ${(percent * 100).toFixed(0)}%`}>
+                                                    {binAvailabilityData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.name === 'ใช่' || entry.name === 'มี' ? '#10b981' : '#ef4444'} />)}
+                                                </Pie>
+                                                <Tooltip content={<CustomTooltip />} /> <Legend wrapperStyle={{fontSize: '14px', paddingTop: '10px'}} />
+                                            </PieChart>
+                                        </ChartCard>
+                                    </SnapBlock>
+
+                                    <SnapBlock>
+                                        <ChartCard title="การเข้าถึงจุดทิ้งขยะสะดวกหรือไม่?" insightConfig={{ title: 'ความสะดวกในการเข้าถึงเปรียบเทียบตามที่พักอาศัย', mainCol: 'ที่พักอาศัย', subCol: 'เข้าถึงจุดทิ้งขยะสะดวก' }}>
+                                            <PieChart>
+                                                <Pie data={accessData} cx="50%" cy="50%" outerRadius="80%" dataKey="value" label={({name, percent}) => `${name} ${(percent * 100).toFixed(0)}%`}>
+                                                    {accessData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.name === 'ใช่' ? '#3b82f6' : '#f59e0b'} />)}
+                                                </Pie>
+                                                <Tooltip content={<CustomTooltip />} /> <Legend wrapperStyle={{fontSize: '14px', paddingTop: '10px'}} />
+                                            </PieChart>
+                                        </ChartCard>
+                                    </SnapBlock>
+
+                                    <SnapBlock>
+                                        <ChartCard title="ระดับความเข้าใจเรื่องการคัดแยกขยะ">
+                                            <BarChart data={understandingData} margin={{ top: 20, right: 30, left: 0, bottom: 20 }}>
+                                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eee" />
+                                                <XAxis dataKey="name" tick={{fontSize: 14}} />
+                                                <YAxis tick={{fontSize: 14}} />
+                                                <Tooltip content={<CustomTooltip />} />
+                                                <Bar dataKey="value" fill="#8b5cf6" radius={[6, 6, 0, 0]} barSize={60} />
+                                            </BarChart>
+                                        </ChartCard>
+                                    </SnapBlock>
+
+                                    <SnapBlock>
+                                        <ChartCard title="ความเชื่อมั่นต่อหน่วยงานปกครองส่วนท้องถิ่น">
+                                            <BarChart data={confidenceData} margin={{ top: 20, right: 30, left: 0, bottom: 20 }}>
+                                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eee" />
+                                                <XAxis dataKey="name" tick={{fontSize: 14}} />
+                                                <YAxis tick={{fontSize: 14}} />
+                                                <Tooltip content={<CustomTooltip />} />
+                                                <Bar dataKey="value" fill="#ec4899" radius={[6, 6, 0, 0]} barSize={60} />
+                                            </BarChart>
+                                        </ChartCard>
+                                    </SnapBlock>
+                                </div>
+                            )}
+
+                            {/* --- PAGE 4: FEEDBACK --- */}
+                            {currentPage === 4 && (
+                                <div className="flex flex-col w-full animate-in fade-in slide-in-from-right-8 duration-500">
+                                    <SnapBlock>
+                                        <div className="bg-white p-8 md:p-10 rounded-3xl shadow-sm border border-gray-200 w-full max-w-5xl mx-auto flex flex-col h-[65vh] min-h-[400px] max-h-[700px]">
+                                            <h2 className="text-2xl md:text-3xl font-bold text-gray-800 mb-6 flex items-center gap-3">
+                                                <Activity className="w-8 h-8 text-blue-500" /> ข้อเสนอแนะเพิ่มเติม
+                                            </h2>
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 overflow-y-auto pr-2 pb-4">
+                                            {parsedData
+                                                .map(row => Object.values(row)[14])
+                                                .filter(feedback => feedback && feedback.trim() !== '-' && feedback.trim() !== '')
+                                                .map((feedback, idx) => (
+                                                <div key={idx} className="bg-blue-50/50 p-5 rounded-2xl border border-blue-100 text-sm md:text-base text-gray-700 shadow-sm leading-relaxed hover:shadow-md transition-shadow">
+                                                    "{feedback}"
+                                                </div>
+                                            ))}
+                                            </div>
+                                            {parsedData.filter(row => {
+                                                const val = Object.values(row)[14];
+                                                return val && val.trim() !== '-' && val.trim() !== '';
+                                            }).length === 0 && (
+                                            <div className="flex flex-col items-center justify-center h-full text-gray-400">
+                                                <p className="text-lg italic">ไม่มีข้อเสนอแนะเพิ่มเติมในขณะนี้</p>
+                                            </div>
+                                            )}
+                                        </div>
+                                    </SnapBlock>
+                                </div>
+                            )}
+
+                        </div>
+                    </div>
+
+                    {/* Footer / Pagination Controls */}
+                    <div className="bg-white border-t border-gray-200 p-4 flex justify-between items-center z-10 flex-shrink-0 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+                        <button 
+                            onClick={handlePrevPage} 
+                            disabled={currentPage === 0}
+                            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold transition-all ${currentPage === 0 ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-white border-2 border-emerald-500 text-emerald-600 hover:bg-emerald-50 shadow-sm'}`}
+                        >
+                            <ChevronLeft className="w-5 h-5" /> ก่อนหน้า
+                        </button>
+
+                        <div className="flex gap-2">
+                            {[0, 1, 2, 3, 4].map(page => (
+                                <button 
+                                    key={page}
+                                    onClick={() => changePage(page)}
+                                    className={`w-3 h-3 rounded-full transition-all ${currentPage === page ? 'bg-emerald-500 w-8' : 'bg-gray-300 hover:bg-emerald-300'}`}
+                                />
+                            ))}
+                        </div>
+
+                        <button 
+                            onClick={handleNextPage} 
+                            disabled={currentPage === TOTAL_PAGES - 1}
+                            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold transition-all ${currentPage === TOTAL_PAGES - 1 ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm'}`}
+                        >
+                            ถัดไป <ChevronRight className="w-5 h-5" />
+                        </button>
+                    </div>
+
+                    {/* --- MODAL 1: Quick Facts --- */}
+                    {selectedFact && (
+                        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-gray-900/40 backdrop-blur-sm transition-opacity animate-in fade-in" onClick={() => setSelectedFact(null)}>
+                            <div className="bg-white rounded-3xl p-8 max-w-lg w-full shadow-2xl transform transition-all animate-in zoom-in-95" onClick={(e) => e.stopPropagation()}>
+                                <div className="flex justify-between items-start mb-6">
+                                    <div className={`p-5 rounded-2xl ${selectedFact.bg}`}>
+                                        {selectedFact.icon}
+                                    </div>
+                                    <button onClick={() => setSelectedFact(null)} className="text-gray-400 hover:text-gray-700 p-2 bg-gray-50 hover:bg-gray-200 rounded-full transition-colors">
+                                        <XIcon className="w-6 h-6" />
+                                    </button>
+                                </div>
+                                <h3 className="text-3xl font-extrabold text-gray-800 mb-2">{selectedFact.title}</h3>
+                                <p className="text-emerald-600 font-bold mb-6 text-lg">{selectedFact.desc}</p>
+                                <div className="bg-gray-50 p-6 rounded-2xl text-gray-700 text-base leading-relaxed border border-gray-100 shadow-inner">
+                                    {selectedFact.details}
+                                </div>
+                                <div className="mt-8 flex justify-end">
+                                    <button onClick={() => setSelectedFact(null)} className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-8 rounded-xl transition-colors shadow-sm w-full sm:w-auto">
+                                        เข้าใจแล้ว
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* --- MODAL 2: Insight (Cross-tabulation) --- */}
+                    {selectedInsight && (() => {
+                        const { data: insightData, categories } = getCrossTabData(parsedData, selectedInsight.mainCol, selectedInsight.subCol, selectedInsight.splitSubByComma);
+                        
+                        return (
+                            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-md transition-opacity animate-in fade-in" onClick={() => setSelectedInsight(null)}>
+                                <div className="bg-white rounded-3xl p-6 md:p-8 max-w-4xl w-full shadow-2xl transform transition-all flex flex-col h-[85vh] max-h-[800px] animate-in zoom-in-95" onClick={(e) => e.stopPropagation()}>
+                                    
+                                    <div className="flex justify-between items-start mb-6 flex-shrink-0 border-b border-gray-100 pb-4">
+                                        <div className="flex items-center gap-3">
+                                            <div className="bg-emerald-100 text-emerald-600 p-3 rounded-2xl">
+                                                <Lightbulb className="w-8 h-8" />
+                                            </div>
+                                            <div>
+                                                <h3 className="text-2xl font-extrabold text-gray-800 leading-tight">Insight เชิงลึก</h3>
+                                                <p className="text-sm font-medium text-emerald-600 mt-1">{selectedInsight.title}</p>
+                                            </div>
+                                        </div>
+                                        <button onClick={() => setSelectedInsight(null)} className="text-gray-400 hover:text-gray-700 p-2 bg-gray-50 hover:bg-gray-200 rounded-full transition-colors">
+                                            <XIcon className="w-6 h-6" />
+                                        </button>
+                                    </div>
+
+                                    <div className="flex-grow w-full min-h-[300px]">
+                                        <ResponsiveContainer width="100%" height="100%">
+                                            <BarChart data={insightData} margin={{ top: 20, right: 30, left: 0, bottom: 60 }}>
+                                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                                                <XAxis dataKey="name" tick={{fontSize: 14, fontWeight: 'bold'}} />
+                                                <YAxis />
+                                                <Tooltip content={<CustomTooltip />} cursor={{fill: 'transparent'}} />
+                                                <Legend wrapperStyle={{ paddingTop: '20px' }} />
+                                                {categories.map((cat, idx) => (
+                                                    <Bar key={cat} dataKey={cat} name={cat} fill={INSIGHT_COLORS[idx % INSIGHT_COLORS.length]} radius={[4, 4, 0, 0]} />
+                                                ))}
+                                            </BarChart>
+                                        </ResponsiveContainer>
+                                    </div>
+
+                                    <div className="mt-6 flex justify-end flex-shrink-0 pt-4 border-t border-gray-100">
+                                        <button onClick={() => setSelectedInsight(null)} className="bg-gray-800 hover:bg-gray-900 text-white font-bold py-3 px-8 rounded-xl transition-colors shadow-sm">
+                                            ปิดหน้าต่าง
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        );
+                    })()}
+
+                </div>
+            );
+        }
+
+        // 6. เริ่มต้นวาด React Component ลงบนหน้าเว็บ
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
